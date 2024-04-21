@@ -1,61 +1,34 @@
 
-
-from ghidra.app.decompiler import DecompInterface
-from ghidra.util.task import ConsoleTaskMonitor
-def extract_binary_info():
-    current_program = getCurrentProgram()
-    print(type(current_program))
-    print(current_program.getExecutablePath())
-    print(current_program.getLanguage())
-    print(type(current_program.getLanguage()))
-    print(current_program.getLanguage().getProcessor())
-    print(current_program.getExecutableFormat())
-
-def extract_function_info(func_name):
-    current_program = getCurrentProgram()
-    fm = current_program.getFunctionManager()
-    funcs = fm.getFunctions(True)
-    for func in funcs:
-        #print(type(func))
-        if func.getName() == func_name:
-            print(func.getEntryPoint())
-            print(type(func.getBody()))
-            print(func.getBody().getMinAddress())
-            print(func.getBody().getMaxAddress())
-def decompile_function(function_name):
-    func_address = return_function_addr(function_name)
-    current_program = getCurrentProgram()
-    decomp_interface = DecompInterface()
-    decomp_interface.openProgram(current_program)
-    
-    # Get the function at the address
-    function = getFunctionAt(func_address)
-
-    if function:
-        # Decompile the function
-        decomp_results = decomp_interface.decompileFunction(function, 0,ConsoleTaskMonitor())
+from ghidra.util.task import TaskMonitor
+import networkx as nx
+def create_call_graph():
+    cg = nx.DiGraph()
+    fm = getCurrentProgram().getFunctionManager()
+    functions = fm.getFunctions(True)
+    for func in functions:
+        func_name = func.getName()
         
-        if decomp_results.decompileCompleted():
-            # Get the decompiled code
-            decompiled_code = decomp_results.getDecompiledFunction().getC()
-            print(decompiled_code) 
+        callees = find_callee_func(func)
+        cg.add_node(func_name)
+        for f in callees:
+            callee_name = f.getName()
+            cg.add_node(callee_name)
+            cg.add_edge(func_name, callee_name)
+    return cg
+
+def find_callee_func( caller_func):
+    monitor = TaskMonitor.DUMMY
+    callees = caller_func.getCalledFunctions(monitor)
+    return callees
 
 
 
-def return_function_addr(func_name):
-    current_program = getCurrentProgram()
-    fm = current_program.getFunctionManager()
-    funcs = fm.getFunctions(True)
-    for func in funcs:
-        #print(type(func))
-        if func.getName() == func_name:
-            return func.getEntryPoint()
 
 
 if __name__ == "__main__":
-    args = getScriptArgs()
-    if args:
-        function_name = args[0]
-        decompile_function(function_name)
+    
+    call_g = create_call_graph()
+    print(call_g.edges())
+        
         
         
