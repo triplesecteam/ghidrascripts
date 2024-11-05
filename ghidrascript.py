@@ -1,61 +1,68 @@
 
-
-from ghidra.app.decompiler import DecompInterface
 from ghidra.util.task import ConsoleTaskMonitor
-def extract_binary_info():
-    current_program = getCurrentProgram()
-    print(type(current_program))
-    print(current_program.getExecutablePath())
-    print(current_program.getLanguage())
-    print(type(current_program.getLanguage()))
-    print(current_program.getLanguage().getProcessor())
-    print(current_program.getExecutableFormat())
-
-def extract_function_info(func_name):
+from ghidra.util.task import TaskMonitor
+from ghidra.program.model.block import BasicBlockModel
+from edu.uci.ics.jung.graph import DirectedSparseGraph
+from ghidra.util.graph import Vertex
+from ghidra.util.graph import Edge 
+def create_cfg(function_name):
+    #breakpoint()
     current_program = getCurrentProgram()
     fm = current_program.getFunctionManager()
     funcs = fm.getFunctions(True)
-    for func in funcs:
-        #print(type(func))
-        if func.getName() == func_name:
-            print(func.getEntryPoint())
-            print(type(func.getBody()))
-            print(func.getBody().getMinAddress())
-            print(func.getBody().getMaxAddress())
-def decompile_function(function_name):
-    func_address = return_function_addr(function_name)
-    current_program = getCurrentProgram()
-    decomp_interface = DecompInterface()
-    decomp_interface.openProgram(current_program)
-    
-    # Get the function at the address
-    function = getFunctionAt(func_address)
+    monitor = ConsoleTaskMonitor()
+    for func in funcs: 
+        if func.getName() == function_name:
+            print(function_name)
+            func_cfg = create_cfg_function(current_program, func, monitor)
+            
+            #cfg = func_cfg
+            #monitor = m
 
-    if function:
-        # Decompile the function
-        decomp_results = decomp_interface.decompileFunction(function, 0,ConsoleTaskMonitor())
+def create_cfg_function( cu_program, function, mon):
+    # create cfg for a single function
+    #print("address in cdg")
+    breakpoint()
+    block_model_iterator = BasicBlockModel(cu_program)
+    function_addresses = function.getBody()
+    code_blocks_iterator = block_model_iterator.getCodeBlocksContaining(function_addresses, mon)
+    cfg = DirectedSparseGraph()
+    while (code_blocks_iterator.hasNext()):
         
-        if decomp_results.decompileCompleted():
-            # Get the decompiled code
-            decompiled_code = decomp_results.getDecompiledFunction().getC()
-            print(decompiled_code) 
-
-
-
-def return_function_addr(func_name):
-    current_program = getCurrentProgram()
-    fm = current_program.getFunctionManager()
-    funcs = fm.getFunctions(True)
-    for func in funcs:
-        #print(type(func))
-        if func.getName() == func_name:
-            return func.getEntryPoint()
+        block = code_blocks_iterator.next()
+        addr = hex(block.getFirstStartAddress().getOffset())
+        #print(addr)
+        v = Vertex(block)
+        cfg.addVertex(v)
+        dstBlocks = block.getDestinations(mon)
+        srcBlocks = block.getSources(mon)
+        while(srcBlocks.hasNext()):
+            source = srcBlocks.next()
+            vsrc = Vertex(source)
+            cfg.addVertex(vsrc)
+            edge1 = Edge(vsrc, v)
+            res = cfg.addEdge(edge1, vsrc, v )
+            src_addr = hex(source.getSourceAddress().getOffset())
+            #print(src_addr)
+            
+        while (dstBlocks.hasNext()):
+            destination = dstBlocks.next()
+            des_addr = hex(destination.getDestinationAddress().getOffset())
+            vdes = Vertex(destination)
+            cfg.addVertex(vdes)
+            edge2 = Edge(v, vdes)
+            cfg.addEdge(edge2, v, vdes)
+            #print(des_addr)
+    #breakpoint()
+    return cfg
 
 
 if __name__ == "__main__":
+
     args = getScriptArgs()
     if args:
         function_name = args[0]
-        decompile_function(function_name)
-        
+        breakpoint()
+        create_cfg(function_name)
+    
         
